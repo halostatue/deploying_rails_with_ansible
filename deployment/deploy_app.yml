@@ -1,0 +1,60 @@
+---
+- hosts: app_server
+  vars_files:
+    - config.yml
+
+  tasks:
+    - name: ensure bitbucket.org is part of known hosts
+      lineinfile: >
+        dest={{user_home}}/.ssh/known_hosts
+        line="bitbucket.org ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAubiN81eDcafrgMeLzaFPsw2kNvEcqTKl/VqLat/MaB33pZy0y3rJZtnqwR2qOOvbwKZYKiEO1O6VqNEBxKvJJelCq0dTXWT5pbO2gDXC6h6QDXCaHo6pOHGPUy+YBaGQRGuSusMEASYiWunYN0vCAI8QaXnWMXNMdFP3jHAJH0eDsoiGnLPBlBp4TNm6rYI74nMzgz3B9IikW4WVK+dc8KZJZWYjAuORU3jc1c/NPskD2ASinf8v3xnfXeukU0sJ5N6m5E8VLjObPEO+mN2t/FZTMZLiFqPWc/ALSqnMnnhwrNi2rbfg/rd/IpL8Le3pSBne8+seeFVBoGqzHM9yXw=="
+        regexp=bitbucket.*
+        state=present
+        create=yes
+
+    - name: copy ssh private key
+      copy: src={{git_ssh_key}} dest={{user_home}}/.ssh/id_rsa mode=600
+
+    - name: clone app repository
+      git: repo={{app_repo}} dest={{app_root}}
+      notify:
+        - restart apache2
+
+    - name: adding rails environment to ~/.bashrc
+      lineinfile: >
+        dest={{user_home}}/.bashrc
+        line="export RAILS_ENV={{rails_env}"
+        insertbefore=BOF
+        regexp='export RAILS_ENV.*'
+        state=present
+        create=yes
+      notify:
+        - restart apache2
+
+    - command: bundle check chdir={{app_root}}
+      register: bundle_check
+      changed_when: false
+
+    - command: bundle install chdir={{app_root}}
+      when: bundle_check|failed
+
+    - name: place database configuration
+      template: src=templates/database.yml.j2 dest={{app_root}}/config/database.yml force=yes
+
+    - name: run migrations
+      command: bundle exec rake db:migrate chdir={{app_root}}
+
+    - name: install apache configuration file for application
+      template: src=templates/application.j2 dest=/etc/apache2/sites-available/{{app_name}}
+      sudo: true
+
+    - name: enable application
+      file: src=/etc/apache2/sites-available/{{app_name}} dest=/etc/apache2/sites-enabled/{{app_name}} state=link
+      sudo: true
+      notify:
+        - restart apache2
+
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted
+      sudo: true

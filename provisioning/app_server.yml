@@ -1,0 +1,113 @@
+---
+- hosts: app_server
+
+  vars:
+    ruby_version: 1.9.3-p392
+    home_dir: /home/{{ansible_ssh_user}}
+    rbenv_root: "{{home_dir}}/.rbenv"
+
+  tasks:
+    - name: update apt cache
+      apt: update_cache=yes
+      sudo: yes
+
+    - name: ensure the required packages are installed
+      apt: pkg={{item}}
+      sudo: yes
+      with_items:
+        - git-core
+        - curl
+        - build-essential
+        - tklib
+        - zlib1g-dev
+        - libssl-dev
+        - libreadline-gplv2-dev
+        - libxml2
+        - libxml2-dev
+        - libxslt1-dev
+        - libcurl4-openssl-dev
+        - apache2-threaded-dev
+        - libapr1-dev
+        - libaprutil1-dev
+        - apache2
+        - libpq-dev
+
+    - name: install rbenv
+      git: repo=git://github.com/sstephenson/rbenv.git dest=$rbenv_root update=no
+
+    - name: install ruby-build plugin
+      git: repo=git://github.com/sstephenson/ruby-build.git dest=$rbenv_root/plugins/ruby-build update=no
+
+    - name: add rbenv init to ~/.bashrc
+      lineinfile: >
+        dest={{home_dir}}/.bashrc
+        line='eval "$(rbenv init -)"'
+        insertbefore=BOF
+        regexp=eval.*rbenv
+        create=yes
+        state=present
+
+    - name: update PATH in ~/.bashrc for rbenv
+      lineinfile: >
+        dest={{home_dir}}/.bashrc
+        line=export\ PATH="$HOME/.rbenv/bin:$PATH"
+        insertbefore=BOF
+        regexp=PATH.*rbenv
+
+    - name: check if ruby {{ruby_version}} is installed
+      shell: rbenv versions | grep {{ruby_version}}
+      register: ruby_installed
+      ignore_errors: yes
+      changed_when: false
+
+    - name: install ruby {{ruby_version}} unless it is already installed
+      command: rbenv install {{ruby_version}}
+      when: ruby_installed | failed
+
+    - name: check current global ruby
+      command: rbenv global
+      register: ruby_global
+      changed_when: false
+
+    - name: make ruby {{ruby_version}} global
+      command: rbenv global {{ruby_version}}
+      when: "ruby_version != ruby_global.stdout"
+
+    - name: install required gems
+      gem: name={{item}} state=present user_install=no
+      with_items:
+        - bundler
+        - passenger
+
+    - name: get passenger installation
+      command: passenger-config --root
+      register: passenger_root
+      changed_when: false
+
+    - name: compile passenger apache2 module
+      command: passenger-install-apache2-module --auto creates={{passenger_root.stdout}}/buildout/apache2/mod_passenger.so
+
+    - name: place apache2 configuration
+      template: src=templates/apache2.conf.j2 dest=/etc/apache2/apache2.conf
+      sudo: yes
+      notify:
+        - restart apache2
+
+    - name: enable mod_rewrite for apache2
+      file: src=/etc/apache2/mods-available/rewrite.load dest=/etc/apache2/mods-enabled/rewrite.load state=link
+      sudo: yes
+      notify:
+        - restart apache2
+
+    - name: ensure no default site is defined
+      file: path=/etc/apache2/sites-enabled/000-default state=absent
+      sudo: yes
+
+    - name: ensure apache2 is running
+      service: name=apache2 state=started
+      sudo: yes
+
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted
+      sudo: yes

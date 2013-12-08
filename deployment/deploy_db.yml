@@ -1,0 +1,18 @@
+---
+- hosts: db_server
+  sudo: yes
+  vars_files:
+    - config.yml
+
+  tasks:
+    - postgresql_user: name={{db_user}} password={{db_password}} role_attr_flags=SUPERUSER,CREATEDB,CREATEROLE,LOGIN
+      sudo_user: postgres
+
+    - postgresql_db: >
+        name={{app_name}}
+        encoding='utf8'
+        lc_collate='en_US.utf8'
+        lc_ctype='en_US.utf8'
+        template='template0'
+        owner={{db_user}}
+      sudo_user: postgres

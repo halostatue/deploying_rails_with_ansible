@@ -1,0 +1,32 @@
+---
+- hosts: db_server
+  sudo: yes
+
+  vars:
+    pg_version: 9.1
+  tasks:
+    - name: update apt cache
+      apt: update_cache=yes
+
+    - name: ensure requirements are installed
+      apt: pkg={{item}}
+      with_items:
+        - postgresql
+        - python-psycopg2
+
+    - name: place postgresql client auth configuration
+      copy: src=files/pg_hba.conf dest=/etc/postgresql/{{pg_version}}/main/pg_hba.conf
+      notify:
+        - restart postgresql
+
+    - name: place postgresql main conf
+      copy: src=files/postgresql.conf dest=/etc/postgresql/{{pg_version}}/main/postgresql.conf
+      notify:
+        - restart postgresql
+
+    - name: ensure postgresql is running
+      service: name=postgresql state=started
+
+  handlers:
+    - name: restart postgresql
+      service: name=postgresql state=restarted

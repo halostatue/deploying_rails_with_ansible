@@ -1,0 +1,10 @@
+app_repo: git@bitbucket.org:jeffersongirao/simple_rails_app.git
+app_name: simple_rails_app
+user_home: /home/{{ansible_ssh_user}}
+app_root: "{{user_home}}/{{app_name}}"
+git_ssh_key: files/id_rsa
+rails_env: production
+server_name: x.example.com
+db_host: 10.0.0.101
+db_user: postgres
+db_password: "{{lookup('password', 'credentials/postgresql length=15')}}"
