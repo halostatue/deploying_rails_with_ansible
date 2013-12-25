@@ -3,7 +3,7 @@
 
   vars:
     ruby_version: 1.9.3-p392
-    home_dir: /home/{{ansible_ssh_user}}
+    home_dir: "{{ansible_env.HOME}}"
     rbenv_root: "{{home_dir}}/.rbenv"
 
   tasks:
