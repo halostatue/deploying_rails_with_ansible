@@ -33,10 +33,10 @@
         - libpq-dev
 
     - name: install rbenv
-      git: repo=git://github.com/sstephenson/rbenv.git dest=$rbenv_root update=no
+      git: repo=git://github.com/sstephenson/rbenv.git dest={{rbenv_root}} update=no
 
     - name: install ruby-build plugin
-      git: repo=git://github.com/sstephenson/ruby-build.git dest=$rbenv_root/plugins/ruby-build update=no
+      git: repo=git://github.com/sstephenson/ruby-build.git dest={{rbenv_root}}/plugins/ruby-build update=no
 
     - name: add rbenv init to ~/.bashrc
       lineinfile: >
