@@ -2,7 +2,7 @@
 - hosts: app_server
 
   vars:
-    ruby_version: 1.9.3-p392
+    ruby_version: 2.1.5
     home_dir: "{{ansible_env.HOME}}"
     rbenv_root: "{{home_dir}}/.rbenv"
 
@@ -32,11 +32,29 @@
         - apache2
         - libpq-dev
 
+    - name: ensure github.com is part of known hosts
+      lineinfile: >
+        dest={{home_dir}}/.ssh/known_hosts
+        line="github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ=="
+        regexp=github.*
+        state=present
+        create=yes
+
+    - name: check if rbenv is already installed
+      stat: path={{rbenv_root}}
+      register: rbenv_install
+
     - name: install rbenv
-      git: repo=git://github.com/sstephenson/rbenv.git dest={{rbenv_root}} update=no
+      git: repo=git://github.com/sstephenson/rbenv.git dest={{rbenv_root}}
+      when: not rbenv_install.stat.exists
+
+    - name: check if ruby-build is already installed
+      stat: path={{rbenv_root}}/plugins/ruby-build
+      register: ruby_build_install
 
     - name: install ruby-build plugin
-      git: repo=git://github.com/sstephenson/ruby-build.git dest={{rbenv_root}}/plugins/ruby-build update=no
+      git: repo=git://github.com/sstephenson/ruby-build.git dest={{rbenv_root}}/plugins/ruby-build
+      when: not ruby_build_install.stat.exists
 
     - name: add rbenv init to ~/.bashrc
       lineinfile: >

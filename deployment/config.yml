@@ -1,4 +1,4 @@
-app_repo: git@bitbucket.org:jeffersongirao/simple_rails_app.git
+app_repo: git@github.com:halostatue/simple_rails_app.git
 app_name: simple_rails_app
 user_home: /home/{{ansible_ssh_user}}
 app_root: "{{user_home}}/{{app_name}}"

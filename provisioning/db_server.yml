@@ -3,7 +3,7 @@
   sudo: yes
 
   vars:
-    pg_version: 9.1
+    pg_version: 9.3
   tasks:
     - name: update apt cache
       apt: update_cache=yes
